@@ -1,0 +1,29 @@
+<?php
+require_once __DIR__.'/../includes/bootstrap.php';
+$user=require_login('provider');
+
+$stmt=db()->prepare('SELECT * FROM providers WHERE user_id=? LIMIT 1');$stmt->bind_param('i',$user['id']);$stmt->execute();$provider=$stmt->get_result()->fetch_assoc();if(!$provider)exit('Provider profile not found.');
+
+$destinations=[];$result=db()->query("SELECT id,name,country FROM destinations WHERE status='active' ORDER BY country,name");while($row=$result->fetch_assoc())$destinations[]=$row;
+$selectedDestinations=[];$stmt=db()->prepare('SELECT destination_id,expertise_level FROM provider_destinations WHERE provider_id=?');$stmt->bind_param('i',$provider['id']);$stmt->execute();while($row=$stmt->get_result()->fetch_assoc())$selectedDestinations[(int)$row['destination_id']]=$row['expertise_level'];
+$categories=['Leisure','Adventure','Family','Honeymoon','Luxury','Budget','Business','Wellness','Group','Custom'];
+$selectedCategories=[];$stmt=db()->prepare('SELECT category FROM provider_categories WHERE provider_id=?');$stmt->bind_param('i',$provider['id']);$stmt->execute();while($row=$stmt->get_result()->fetch_assoc())$selectedCategories[]=mb_strtolower($row['category']);
+$error=null;
+if($_SERVER['REQUEST_METHOD']==='POST'){
+ verify_csrf($_POST['csrf_token']??null);
+ $description=trim($_POST['description']??'');$min=(float)($_POST['typical_min_budget']??0);$max=(float)($_POST['typical_max_budget']??0);
+ $destinationInput=$_POST['destinations']??[];$expertInput=$_POST['expert_destinations']??[];$categoryInput=$_POST['categories']??[];
+ if($min>0&&$max>0&&$min>$max)$error='Minimum typical budget cannot exceed maximum.';
+ if(!$error){
+  $stmt=db()->prepare('UPDATE providers SET description=?,typical_min_budget=?,typical_max_budget=? WHERE id=?');$stmt->bind_param('sddi',$description,$min,$max);$stmt->execute();
+  $stmt=db()->prepare('DELETE FROM provider_destinations WHERE provider_id=?');$stmt->bind_param('i',$provider['id']);$stmt->execute();
+  $ins=db()->prepare('INSERT INTO provider_destinations(provider_id,destination_id,expertise_level) VALUES(?,?,?)');
+  foreach($destinationInput as $destinationId){$destinationId=(int)$destinationId;if($destinationId<1)continue;$level=in_array((string)$destinationId,$expertInput,true)?'expert':'standard';$ins->bind_param('iis',$provider['id'],$destinationId,$level);$ins->execute();}
+  $stmt=db()->prepare('DELETE FROM provider_categories WHERE provider_id=?');$stmt->bind_param('i',$provider['id']);$stmt->execute();
+  $ins=db()->prepare('INSERT INTO provider_categories(provider_id,category) VALUES(?,?)');
+  foreach($categoryInput as $category){$category=trim((string)$category);if($category==='')continue;$ins->bind_param('is',$provider['id'],$category);$ins->execute();}
+  flash('success','Marketplace profile updated.');redirect('/provider/profile.php');
+ }
+}
+$page_title='Provider Marketplace Profile';require __DIR__.'/../includes/header.php';
+?><div class="container py-5" style="max-width:900px"><div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h3 mb-1">Marketplace profile</h1><p class="text-secondary mb-0">Help NamVoy match your business to the right trip requests.</p></div><a class="btn btn-outline-dark" href="/provider/dashboard.php">Dashboard</a></div><?php if($error):?><div class="alert alert-danger"><?=e($error)?></div><?php endif;?><form method="post"><input type="hidden" name="csrf_token" value="<?=e(csrf_token())?>"><div class="card p-4 mb-4"><h2 class="h5">Business positioning</h2><label class="form-label">Typical minimum budget (INR)</label><input class="form-control mb-3" type="number" min="0" step="0.01" name="typical_min_budget" value="<?=e((string)$provider['typical_min_budget'])?>"><label class="form-label">Typical maximum budget (INR)</label><input class="form-control mb-3" type="number" min="0" step="0.01" name="typical_max_budget" value="<?=e((string)$provider['typical_max_budget'])?>"><label class="form-label">Business description</label><textarea class="form-control" name="description" rows="5"><?=e($provider['description']??'')?></textarea></div><div class="card p-4 mb-4"><h2 class="h5">Destination coverage</h2><p class="text-secondary">Select destinations you actively sell. Mark destinations where you have expert knowledge.</p><div class="row g-2"><?php foreach($destinations as $d):$did=(int)$d['id'];?><div class="col-md-6"><div class="border rounded p-2"><div class="form-check"><input class="form-check-input" type="checkbox" name="destinations[]" value="<?=$did?>" id="dest<?=$did?>" <?=array_key_exists($did,$selectedDestinations)?'checked':''?>><label class="form-check-label" for="dest<?=$did?>"><?=e($d['name'])?>, <?=e($d['country'])?></label></div><div class="form-check ms-4"><input class="form-check-input" type="checkbox" name="expert_destinations[]" value="<?=$did?>" id="expert<?=$did?>" <?=($selectedDestinations[$did]??'')==='expert'?'checked':''?>><label class="form-check-label small" for="expert<?=$did?>">Expert destination</label></div></div></div><?php endforeach;?></div></div><div class="card p-4 mb-4"><h2 class="h5">Trip categories</h2><div class="row g-2"><?php foreach($categories as $category):$slug=mb_strtolower($category);?><div class="col-6 col-md-4"><div class="form-check"><input class="form-check-input" type="checkbox" name="categories[]" value="<?=e($category)?>" id="cat<?=e($slug)?>" <?=in_array($slug,$selectedCategories,true)?'checked':''?>><label class="form-check-label" for="cat<?=e($slug)?>"><?=e($category)?></label></div></div><?php endforeach;?></div></div><button class="btn btn-dark">Save marketplace profile</button></form></div><?php require __DIR__.'/../includes/footer.php'; ?>
