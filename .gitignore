@@ -1,0 +1,8 @@
+.env
+.env.*
+config/local.php
+uploads/
+*.log
+.DS_Store
+.idea/
+.vscode/
