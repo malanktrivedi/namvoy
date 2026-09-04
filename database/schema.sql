@@ -22,6 +22,8 @@ CREATE TABLE providers (
   business_email VARCHAR(190) NULL,
   business_phone VARCHAR(40) NULL,
   description TEXT NULL,
+  typical_min_budget DECIMAL(12,2) NULL,
+  typical_max_budget DECIMAL(12,2) NULL,
   verification_status ENUM('pending','verified','trusted','preferred','rejected') NOT NULL DEFAULT 'pending',
   rating DECIMAL(3,2) NOT NULL DEFAULT 0,
   response_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
@@ -47,6 +49,22 @@ CREATE TABLE destinations (
   country VARCHAR(100) NOT NULL,
   status ENUM('active','inactive') NOT NULL DEFAULT 'active',
   UNIQUE KEY uq_destination (name,country)
+) ENGINE=InnoDB;
+
+CREATE TABLE provider_destinations (
+  provider_id INT UNSIGNED NOT NULL,
+  destination_id INT UNSIGNED NOT NULL,
+  expertise_level ENUM('standard','expert') NOT NULL DEFAULT 'standard',
+  PRIMARY KEY (provider_id,destination_id),
+  CONSTRAINT fk_provider_destination_provider FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE,
+  CONSTRAINT fk_provider_destination_destination FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE provider_categories (
+  provider_id INT UNSIGNED NOT NULL,
+  category VARCHAR(80) NOT NULL,
+  PRIMARY KEY (provider_id,category),
+  CONSTRAINT fk_provider_category_provider FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 CREATE TABLE trip_requests (
