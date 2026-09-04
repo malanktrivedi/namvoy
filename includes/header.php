@@ -21,7 +21,8 @@ $user = current_user();
         <li class="nav-item"><a class="nav-link" href="/trip-planner.php">Build My Trip</a></li>
         <?php if ($user): ?>
           <?php if ($user['role'] === 'traveler'): ?><li class="nav-item"><a class="nav-link" href="/account/dashboard.php">Dashboard</a></li><li class="nav-item"><a class="nav-link" href="/account/bookings.php">Bookings</a></li><?php endif; ?>
-          <?php if ($user['role'] === 'provider'): ?><li class="nav-item"><a class="nav-link" href="/provider/dashboard.php">Provider Dashboard</a></li><?php endif; ?>
+          <?php if ($user['role'] === 'provider'): ?><li class="nav-item"><a class="nav-link" href="/provider/dashboard.php">Provider Dashboard</a></li><li class="nav-item"><a class="nav-link" href="/provider/bookings.php">Bookings</a></li><?php endif; ?>
+          <?php if ($user['role'] === 'admin'): ?><li class="nav-item"><a class="nav-link" href="/admin/index.php">Admin</a></li><?php endif; ?>
           <li class="nav-item"><a class="btn btn-dark btn-sm" href="/logout.php">Logout</a></li>
         <?php else: ?>
           <li class="nav-item"><a class="nav-link" href="/login.php">Login</a></li>
