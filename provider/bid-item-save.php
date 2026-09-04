@@ -1,0 +1,25 @@
+<?php
+require_once __DIR__.'/../includes/bootstrap.php';
+$user=require_login('provider');
+if($_SERVER['REQUEST_METHOD']!=='POST'){http_response_code(405);exit('Method not allowed.');}
+verify_csrf($_POST['csrf_token']??null);
+$bidId=(int)($_POST['bid_id']??0);
+$stmt=db()->prepare("SELECT pb.*,p.user_id,tr.status AS request_status,tr.expires_at FROM provider_bids pb JOIN providers p ON p.id=pb.provider_id JOIN trip_requests tr ON tr.id=pb.trip_request_id WHERE pb.id=? AND p.user_id=? LIMIT 1");
+$stmt->bind_param('ii',$bidId,$user['id']);$stmt->execute();$bid=$stmt->get_result()->fetch_assoc();
+if(!$bid){http_response_code(404);exit('Offer not found.');}
+if(!in_array($bid['status'],['draft','submitted'],true)){flash('error','Only an active offer can be edited.');redirect('/provider/dashboard.php');}
+$types=$_POST['item_type']??[];$titles=$_POST['title']??[];$descriptions=$_POST['item_description']??[];$quantities=$_POST['quantity']??[];$prices=$_POST['unit_price']??[];
+$rows=[];$total=0.0;
+for($i=0;$i<count($titles);$i++){
+ $title=trim((string)$titles[$i]); if($title==='')continue;
+ $type=trim((string)($types[$i]??'service'));$desc=trim((string)($descriptions[$i]??''));$qty=(float)($quantities[$i]??1);$price=(float)($prices[$i]??0);
+ if($qty<=0||$price<0){flash('error','Each offer item must have a positive quantity and non-negative price.');redirect('/provider/bid-items.php?bid_id='.$bidId);}
+ $line=round($qty*$price,2);$total+= $line;$rows[]=[$type,$title,$desc,$qty,$price,$line];
+}
+if(!$rows){flash('error','Add at least one offer item.');redirect('/provider/bid-items.php?bid_id='.$bidId);}
+$db=db();$db->begin_transaction();try{
+ $del=$db->prepare('DELETE FROM provider_bid_items WHERE bid_id=?');$del->bind_param('i',$bidId);$del->execute();
+ $ins=$db->prepare('INSERT INTO provider_bid_items (bid_id,item_type,title,description,quantity,unit_price,total_price) VALUES (?,?,?,?,?,?,?)');
+ foreach($rows as $r){$ins->bind_param('isssddd',$bidId,$r[0],$r[1],$r[2],$r[3],$r[4],$r[5]);$ins->execute();}
+ $up=$db->prepare('UPDATE provider_bids SET total_amount=? WHERE id=?');$up->bind_param('di',$total,$bidId);$up->execute();$db->commit();flash('success','Offer items saved and total recalculated.');redirect('/provider/bid-items.php?bid_id='.$bidId);
+}catch(Throwable $e){$db->rollback();flash('error','Unable to save offer items.');redirect('/provider/bid-items.php?bid_id='.$bidId);}
