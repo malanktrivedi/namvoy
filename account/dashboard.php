@@ -1,9 +1,0 @@
-<?php
-require_once __DIR__.'/../includes/bootstrap.php';
-$user=require_login('traveler');
-$stmt=db()->prepare('SELECT id,request_number,destination,start_date,end_date,adults,children,budget_max,status,expires_at,created_at FROM trip_requests WHERE user_id=? ORDER BY created_at DESC');$stmt->bind_param('i',$user['id']);$stmt->execute();$requests=$stmt->get_result();
-$page_title='Traveler Dashboard';require __DIR__.'/../includes/header.php';
-?>
-<div class="container py-5"><div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h3 mb-1">Welcome, <?=e($user['first_name'])?></h1><p class="text-secondary mb-0">Your travel requests and provider offers.</p></div><a class="btn btn-dark" href="/trip-planner.php">+ Build a Trip</a></div>
-<div class="card"><div class="card-body"><h2 class="h5">My Requests</h2><?php if($requests->num_rows===0):?><p class="text-secondary mb-0">No requests yet. Start by telling NamVoy what you want.</p><?php else:?><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Request</th><th>Destination</th><th>Dates</th><th>Budget</th><th>Status</th><th>Deadline</th><th></th></tr></thead><tbody><?php while($r=$requests->fetch_assoc()):?><tr><td><?=e($r['request_number'])?></td><td><?=e($r['destination'])?></td><td><?=e($r['start_date'])?> → <?=e($r['end_date'])?></td><td><?=e($r['currency']??'INR')?> <?=number_format((float)$r['budget_max'])?></td><td><span class="badge text-bg-light text-capitalize"><?=e(str_replace('_',' ',$r['status']))?></span></td><td><?=e($r['expires_at']?:'—')?></td><td><a href="/account/request-view.php?id=<?=$r['id']?>">View</a> · <a href="/account/request-manage.php?id=<?=$r['id']?>">Manage</a></td></tr><?php endwhile;?></tbody></table></div><?php endif;?></div></div></div>
-<?php require __DIR__.'/../includes/footer.php'; ?>

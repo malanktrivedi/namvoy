@@ -1,7 +1,0 @@
-<?php
-require_once __DIR__.'/../includes/bootstrap.php';
-$user=require_login();
-$stmt=db()->prepare('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 100');$stmt->bind_param('i',$user['id']);$stmt->execute();$notifications=$stmt->get_result();
-$mark=db()->prepare('UPDATE notifications SET is_read=1 WHERE user_id=?');$mark->bind_param('i',$user['id']);$mark->execute();
-$page_title='Notifications';require __DIR__.'/../includes/header.php';
-?><div class="container py-5" style="max-width:900px"><div class="d-flex justify-content-between align-items-center mb-4"><div><h1 class="h3 mb-1">Notifications</h1><p class="text-secondary mb-0">Marketplace activity and important updates.</p></div><a class="btn btn-outline-dark" href="/">Home</a></div><div class="card"><div class="list-group list-group-flush"><?php if(!$notifications->num_rows):?><div class="p-4 text-secondary">You're all caught up.</div><?php else:while($n=$notifications->fetch_assoc()):?><div class="list-group-item p-4"><div class="d-flex justify-content-between gap-3"><div><strong><?=e($n['title'])?></strong><div class="mt-1 text-secondary"><?=e($n['message'])?></div></div><small class="text-secondary text-nowrap"><?=e($n['created_at'])?></small></div></div><?php endwhile;endif;?></div></div></div><?php require __DIR__.'/../includes/footer.php'; ?>
